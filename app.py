@@ -12,7 +12,7 @@ API_KEY = os.getenv("FMP_API_KEY")  # Load API key from environment variable
 MOST_ACTIVE_URL = f"https://financialmodelingprep.com/api/v3/actives?apikey={API_KEY}"
 BIG_8 = ["AAPL", "MSFT", "GOOGL", "AMZN", "META", "TSLA", "NVDA", "PLTR"]
 
-# Function to fetch Pelosi trades using the API with advanced headers
+# Function to fetch Pelosi trades using the API with session handling
 def fetch_pelosi_trades():
     try:
         headers = {
@@ -25,11 +25,15 @@ def fetch_pelosi_trades():
             "Connection": "keep-alive"
         }
 
+        cookies = {
+            "cookie_consent": "accepted"  # Simulating cookie acceptance
+        }
+
         session = httpx.Client()
-        
+
         # Step 1: Visit the homepage to establish session
         session.get("https://www.capitoltrades.com", headers=headers)
-        
+
         # Step 2: Fetch Pelosi's trades using session cookies
         response = session.get(PELOSI_TRADES_API_URL, headers=headers, cookies=session.cookies)
 
