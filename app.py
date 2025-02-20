@@ -29,12 +29,17 @@ def fetch_pelosi_trades():
 
         for row in trade_rows:
             try:
+                politician = row.select_one(".politician-name").text.strip()
+                if "Pelosi" not in politician:  # Filter only Pelosi trades
+                    continue
+                
                 ticker = row.select_one(".ticker").text.strip()
                 transaction = row.select_one(".transaction").text.strip()
                 date = row.select_one(".date").text.strip()
                 amount = row.select_one(".amount").text.strip()
 
                 trades.append({
+                    "Politician": politician,
                     "Ticker": ticker,
                     "Transaction": transaction,
                     "Date": date,
@@ -43,6 +48,7 @@ def fetch_pelosi_trades():
             except:
                 continue
 
+        print("Fetched Pelosi Trades:", trades)  # Debugging
         return trades
     except Exception as e:
         st.error(f"Error fetching Pelosi trades: {e}")
