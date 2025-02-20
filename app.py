@@ -12,24 +12,34 @@ API_KEY = os.getenv("FMP_API_KEY")  # Load API key from environment variable
 MOST_ACTIVE_URL = f"https://financialmodelingprep.com/api/v3/actives?apikey={API_KEY}"
 BIG_8 = ["AAPL", "MSFT", "GOOGL", "AMZN", "META", "TSLA", "NVDA", "PLTR"]
 
-# Function to fetch Pelosi trades using the API with debugging
+# Function to fetch Pelosi trades using the API with cookies
 def fetch_pelosi_trades():
     try:
         headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+            "Referer": "https://www.capitoltrades.com",
+            "Origin": "https://www.capitoltrades.com"
         }
-        response = httpx.get(PELOSI_TRADES_API_URL, headers=headers)
-        
+
+        cookies = {
+            "cookie_consent": "accepted"  # Simulating cookie acceptance
+        }
+
+        session = httpx.Client()
+        session.get("https://www.capitoltrades.com", headers=headers)  # Load session cookies
+        response = session.get(PELOSI_TRADES_API_URL, headers=headers, cookies=cookies)
+
         # Debugging: Print response status and text
         print("Response Status:", response.status_code)
-        print("Response Text:", response.text)
+        print("Response Headers:", response.headers)
+        print("Response Text:", response.text[:500])  # Print first 500 chars
 
         response.raise_for_status()
-        
-        data = response.json()  # Check if JSON parsing works
+
+        data = response.json()
         trades = []
 
-        for trade in data.get("trades", []):  # Use .get() to avoid KeyErrors
+        for trade in data.get("trades", []):  
             trades.append({
                 "Politician": trade.get("politician", "Unknown"),
                 "Ticker": trade.get("ticker", "Unknown"),
@@ -38,7 +48,7 @@ def fetch_pelosi_trades():
                 "Amount": trade.get("amount", "Unknown")
             })
 
-        print("Fetched Pelosi Trades:", trades)  # Debugging
+        print("Fetched Pelosi Trades:", trades)  
         return trades
     except Exception as e:
         st.error(f"Error fetching Pelosi trades: {e}")
