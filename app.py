@@ -6,6 +6,7 @@ import streamlit as st
 from bs4 import BeautifulSoup
 import pandas as pd
 from playwright.sync_api import sync_playwright
+import subprocess
 
 # Define stock symbols to track (Pelosi trades, Most Actives, and Big 8)
 PELOSI_TRADES_URL = "https://www.capitoltrades.com/"
@@ -17,7 +18,12 @@ BIG_8 = ["AAPL", "MSFT", "GOOGL", "AMZN", "META", "TSLA", "NVDA", "PLTR"]
 def fetch_pelosi_trades():
     try:
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
+            try:
+                browser = p.chromium.launch(headless=True)
+            except:
+                subprocess.run(["playwright", "install", "--with-deps"], check=True)
+                browser = p.chromium.launch(headless=True)
+            
             page = browser.new_page()
             page.goto(PELOSI_TRADES_URL)
             page.wait_for_load_state("networkidle")  # Ensure full page load
