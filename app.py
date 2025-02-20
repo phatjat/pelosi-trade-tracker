@@ -12,25 +12,30 @@ API_KEY = os.getenv("FMP_API_KEY")  # Load API key from environment variable
 MOST_ACTIVE_URL = f"https://financialmodelingprep.com/api/v3/actives?apikey={API_KEY}"
 BIG_8 = ["AAPL", "MSFT", "GOOGL", "AMZN", "META", "TSLA", "NVDA", "PLTR"]
 
-# Function to fetch Pelosi trades using the API
+# Function to fetch Pelosi trades using the API with debugging
 def fetch_pelosi_trades():
     try:
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
         }
         response = httpx.get(PELOSI_TRADES_API_URL, headers=headers)
+        
+        # Debugging: Print response status and text
+        print("Response Status:", response.status_code)
+        print("Response Text:", response.text)
+
         response.raise_for_status()
         
-        data = response.json()  # Assuming JSON response format
+        data = response.json()  # Check if JSON parsing works
         trades = []
 
-        for trade in data["trades"]:  # Adjust based on actual API response
+        for trade in data.get("trades", []):  # Use .get() to avoid KeyErrors
             trades.append({
-                "Politician": trade["politician"],
-                "Ticker": trade["ticker"],
-                "Transaction": trade["transaction_type"],
-                "Date": trade["transaction_date"],
-                "Amount": trade["amount"]
+                "Politician": trade.get("politician", "Unknown"),
+                "Ticker": trade.get("ticker", "Unknown"),
+                "Transaction": trade.get("transaction_type", "Unknown"),
+                "Date": trade.get("transaction_date", "Unknown"),
+                "Amount": trade.get("amount", "Unknown")
             })
 
         print("Fetched Pelosi Trades:", trades)  # Debugging
