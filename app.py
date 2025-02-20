@@ -5,11 +5,7 @@ from datetime import datetime
 import streamlit as st
 from bs4 import BeautifulSoup
 import pandas as pd
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
-from webdriver_manager.chrome import ChromeDriverManager
-from selenium.webdriver.common.by import By
+from requests_html import HTMLSession
 
 # Define stock symbols to track (Pelosi trades, Most Actives, and Big 8)
 PELOSI_TRADES_URL = "https://www.capitoltrades.com/"
@@ -17,31 +13,22 @@ API_KEY = os.getenv("FMP_API_KEY")  # Load API key from environment variable
 MOST_ACTIVE_URL = f"https://financialmodelingprep.com/api/v3/actives?apikey={API_KEY}"
 BIG_8 = ["AAPL", "MSFT", "GOOGL", "AMZN", "META", "TSLA", "NVDA", "PLTR"]
 
-# Function to scrape Pelosi trades from CapitolTrades using Selenium
+# Function to scrape Pelosi trades from CapitolTrades using requests-html
 def fetch_pelosi_trades():
     try:
-        options = Options()
-        options.add_argument("--headless")  # Headless mode for cloud compatibility
-        options.add_argument("--disable-gpu")
-        options.add_argument("--no-sandbox")
-        options.add_argument("--disable-dev-shm-usage")
-
-        # Properly initialize ChromeDriver
-        service = Service(ChromeDriverManager().install())
-        driver = webdriver.Chrome(service=service, options=options)
-
-        driver.get(PELOSI_TRADES_URL)
-        time.sleep(5)  # Allow JavaScript to load
+        session = HTMLSession()
+        response = session.get(PELOSI_TRADES_URL)
+        response.html.render(timeout=20)  # Render JavaScript
 
         trades = []
-        trade_rows = driver.find_elements(By.CSS_SELECTOR, ".trade-list-item")
+        trade_rows = response.html.find(".trade-list-item")  # CSS selector for trade items
 
         for row in trade_rows:
             try:
-                ticker = row.find_element(By.CLASS_NAME, "ticker").text
-                transaction = row.find_element(By.CLASS_NAME, "transaction").text
-                date = row.find_element(By.CLASS_NAME, "date").text
-                amount = row.find_element(By.CLASS_NAME, "amount").text
+                ticker = row.find(".ticker", first=True).text
+                transaction = row.find(".transaction", first=True).text
+                date = row.find(".date", first=True).text
+                amount = row.find(".amount", first=True).text
 
                 trades.append({
                     "Ticker": ticker,
@@ -52,7 +39,6 @@ def fetch_pelosi_trades():
             except:
                 continue
 
-        driver.quit()
         return trades
     except Exception as e:
         st.error(f"Error fetching Pelosi trades: {e}")
@@ -115,4 +101,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
