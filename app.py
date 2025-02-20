@@ -4,33 +4,50 @@ from datetime import datetime
 import streamlit as st
 from bs4 import BeautifulSoup
 import pandas as pd
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
+from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.common.by import By
 
 # Define stock symbols to track (Pelosi trades, Most Actives, and Big 8)
 PELOSI_TRADES_URL = "https://www.capitoltrades.com/"
-MOST_ACTIVE_URL = "https://financialmodelingprep.com/api/v3/actives?apikey=VhWsVJxcLWfqQ10v4h5r5HlfrpXGz3ek"
+API_KEY = os.getenv("FMP_API_KEY")  # Load API key from environment variable
+MOST_ACTIVE_URL = f"https://financialmodelingprep.com/api/v3/actives?apikey={API_KEY}"
 BIG_8 = ["AAPL", "MSFT", "GOOGL", "AMZN", "META", "TSLA", "NVDA", "PLTR"]
 
-# Function to scrape Pelosi trades from CapitolTrades
+# Function to scrape Pelosi trades from CapitolTrades using Selenium
 def fetch_pelosi_trades():
     try:
-        response = requests.get(PELOSI_TRADES_URL)
-        soup = BeautifulSoup(response.text, "html.parser")
+        options = Options()
+        options.add_argument("--headless")
+        options.add_argument("--disable-gpu")
+        options.add_argument("--no-sandbox")
         
+        driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+        driver.get(PELOSI_TRADES_URL)
+        time.sleep(5)  # Wait for JavaScript to load
+
         trades = []
-        table = soup.find("table")  # Locate the table on the page
-        if table:
-            rows = table.find_all("tr")[1:]  # Skip header row
-            for row in rows:
-                cols = row.find_all("td")
-                if len(cols) >= 4:
-                    trade_data = {
-                        "Ticker": cols[0].text.strip(),
-                        "Transaction": cols[1].text.strip(),
-                        "Date": cols[2].text.strip(),
-                        "Amount": cols[3].text.strip()
-                    }
-                    trades.append(trade_data)
-        print("Scraped Pelosi Trades:", trades)  # Debugging print
+        trade_rows = driver.find_elements(By.CSS_SELECTOR, ".trade-list-item")
+        
+        for row in trade_rows:
+            try:
+                ticker = row.find_element(By.CLASS_NAME, "ticker").text
+                transaction = row.find_element(By.CLASS_NAME, "transaction").text
+                date = row.find_element(By.CLASS_NAME, "date").text
+                amount = row.find_element(By.CLASS_NAME, "amount").text
+
+                trades.append({
+                    "Ticker": ticker,
+                    "Transaction": transaction,
+                    "Date": date,
+                    "Amount": amount
+                })
+            except:
+                continue
+
+        driver.quit()
         return trades
     except Exception as e:
         st.error(f"Error fetching Pelosi trades: {e}")
@@ -40,7 +57,6 @@ def fetch_pelosi_trades():
 def fetch_most_active():
     try:
         response = requests.get(MOST_ACTIVE_URL)
-        print("Most Active API Response:", response.text)  # Debugging print
         response.raise_for_status()
         return response.json()
     except Exception as e:
@@ -51,7 +67,6 @@ def fetch_most_active():
 def generate_alerts(pelosi_trades, most_active):
     alerts = []
     
-    # Check Pelosi trades against Big 8 and Most Active
     for trade in pelosi_trades:
         symbol = trade.get('Ticker', '')
         action = trade.get('Transaction', 'Unknown')
@@ -75,21 +90,18 @@ def main():
         most_active = fetch_most_active()
         alerts = generate_alerts(pelosi_trades, most_active)
         
-        # **Display Pelosi Portfolio**
         if pelosi_trades:
             st.subheader("Pelosi Portfolio")
             st.dataframe(pd.DataFrame(pelosi_trades))
         else:
             st.warning("No Pelosi trades found.")
         
-        # **Display Most Active Stocks**
         if most_active:
             st.subheader("Most Active Stocks")
             st.dataframe(pd.DataFrame(most_active))
         else:
             st.warning("No most active stocks found.")
         
-        # **Display Alerts**
         if alerts:
             for alert in alerts:
                 st.warning(alert)
