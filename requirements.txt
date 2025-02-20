@@ -2,7 +2,7 @@ streamlit
 requests
 beautifulsoup4
 pandas
-requests-html
+playwright
 webdriver-manager
 
 
