@@ -3,50 +3,35 @@ import requests
 import time
 from datetime import datetime
 import streamlit as st
-from bs4 import BeautifulSoup
 import pandas as pd
 import httpx
 
 # Define stock symbols to track (Pelosi trades, Most Actives, and Big 8)
-PELOSI_TRADES_URL = "https://www.capitoltrades.com/"
+PELOSI_TRADES_API_URL = "https://www.capitoltrades.com/trades?politician=P000197"  # API for Pelosi's trades
 API_KEY = os.getenv("FMP_API_KEY")  # Load API key from environment variable
 MOST_ACTIVE_URL = f"https://financialmodelingprep.com/api/v3/actives?apikey={API_KEY}"
 BIG_8 = ["AAPL", "MSFT", "GOOGL", "AMZN", "META", "TSLA", "NVDA", "PLTR"]
 
-# Function to scrape Pelosi trades from CapitolTrades using httpx and BeautifulSoup
+# Function to fetch Pelosi trades using the API
 def fetch_pelosi_trades():
     try:
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
         }
-        response = httpx.get(PELOSI_TRADES_URL, headers=headers)
+        response = httpx.get(PELOSI_TRADES_API_URL, headers=headers)
         response.raise_for_status()
-
-        soup = BeautifulSoup(response.text, "html.parser")
+        
+        data = response.json()  # Assuming JSON response format
         trades = []
 
-        trade_rows = soup.select(".trade-list-item")  # Adjust selector as needed
-
-        for row in trade_rows:
-            try:
-                politician = row.select_one(".politician-name").text.strip()
-                if "Pelosi" not in politician:  # Filter only Pelosi trades
-                    continue
-                
-                ticker = row.select_one(".ticker").text.strip()
-                transaction = row.select_one(".transaction").text.strip()
-                date = row.select_one(".date").text.strip()
-                amount = row.select_one(".amount").text.strip()
-
-                trades.append({
-                    "Politician": politician,
-                    "Ticker": ticker,
-                    "Transaction": transaction,
-                    "Date": date,
-                    "Amount": amount
-                })
-            except:
-                continue
+        for trade in data["trades"]:  # Adjust based on actual API response
+            trades.append({
+                "Politician": trade["politician"],
+                "Ticker": trade["ticker"],
+                "Transaction": trade["transaction_type"],
+                "Date": trade["transaction_date"],
+                "Amount": trade["amount"]
+            })
 
         print("Fetched Pelosi Trades:", trades)  # Debugging
         return trades
