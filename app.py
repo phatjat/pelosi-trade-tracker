@@ -25,26 +25,31 @@ def fetch_pelosi_trades():
             "Connection": "keep-alive"
         }
 
-        cookies = {
-            "cookie_consent": "accepted"  # Simulating cookie acceptance
-        }
-
         session = httpx.Client()
 
-        # Step 1: Visit the homepage to establish session
+        # Step 1: Fetch the homepage to establish a session
         session.get("https://www.capitoltrades.com", headers=headers)
-
-        # Step 2: Fetch Pelosi's trades using session cookies
-        response = session.get(PELOSI_TRADES_API_URL, headers=headers, cookies=session.cookies)
+        
+        # Step 2: Delay before making the next request
+        time.sleep(3)  # Short delay to mimic real user behavior
+        
+        # Step 3: Try both GET and POST requests
+        response = session.post(PELOSI_TRADES_API_URL, headers=headers)
 
         # Debugging: Print response details
         print("Response Status:", response.status_code)
         print("Response Headers:", response.headers)
-        print("Response Text:", response.text[:500])  # Print first 500 chars
+        print("Response Text (first 1000 chars):", response.text[:1000])  # Print more data
 
         response.raise_for_status()
 
-        data = response.json()
+        # Step 4: Ensure JSON response
+        try:
+            data = response.json()
+        except Exception as e:
+            st.error("Error: API response is not valid JSON.")
+            return []
+
         trades = []
 
         for trade in data.get("trades", []):  
@@ -56,7 +61,7 @@ def fetch_pelosi_trades():
                 "Amount": trade.get("amount", "Unknown")
             })
 
-        print("Fetched Pelosi Trades:", trades)  
+        print("Fetched Pelosi Trades:", trades)
         return trades
     except Exception as e:
         st.error(f"Error fetching Pelosi trades: {e}")
