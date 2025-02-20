@@ -5,7 +5,11 @@ from datetime import datetime
 import streamlit as st
 from bs4 import BeautifulSoup
 import pandas as pd
-import undetected_chromedriver.v2 as uc
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
+from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.common.by import By
 
 # Define stock symbols to track (Pelosi trades, Most Actives, and Big 8)
 PELOSI_TRADES_URL = "https://www.capitoltrades.com/"
@@ -13,27 +17,31 @@ API_KEY = os.getenv("FMP_API_KEY")  # Load API key from environment variable
 MOST_ACTIVE_URL = f"https://financialmodelingprep.com/api/v3/actives?apikey={API_KEY}"
 BIG_8 = ["AAPL", "MSFT", "GOOGL", "AMZN", "META", "TSLA", "NVDA", "PLTR"]
 
-# Function to scrape Pelosi trades from CapitolTrades using undetected_chromedriver
+# Function to scrape Pelosi trades from CapitolTrades using Selenium
 def fetch_pelosi_trades():
     try:
-        options = uc.ChromeOptions()
-        options.headless = True  # Ensure headless mode
+        options = Options()
+        options.add_argument("--headless")  # Headless mode for cloud compatibility
+        options.add_argument("--disable-gpu")
         options.add_argument("--no-sandbox")
         options.add_argument("--disable-dev-shm-usage")
 
-        driver = uc.Chrome(options=options)
+        # Properly initialize ChromeDriver
+        service = Service(ChromeDriverManager().install())
+        driver = webdriver.Chrome(service=service, options=options)
+
         driver.get(PELOSI_TRADES_URL)
-        time.sleep(5)  # Wait for JavaScript to load
+        time.sleep(5)  # Allow JavaScript to load
 
         trades = []
-        trade_rows = driver.find_elements("css selector", ".trade-list-item")
+        trade_rows = driver.find_elements(By.CSS_SELECTOR, ".trade-list-item")
 
         for row in trade_rows:
             try:
-                ticker = row.find_element("css selector", ".ticker").text
-                transaction = row.find_element("css selector", ".transaction").text
-                date = row.find_element("css selector", ".date").text
-                amount = row.find_element("css selector", ".amount").text
+                ticker = row.find_element(By.CLASS_NAME, "ticker").text
+                transaction = row.find_element(By.CLASS_NAME, "transaction").text
+                date = row.find_element(By.CLASS_NAME, "date").text
+                amount = row.find_element(By.CLASS_NAME, "amount").text
 
                 trades.append({
                     "Ticker": ticker,
@@ -107,3 +115,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
