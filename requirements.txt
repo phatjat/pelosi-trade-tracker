@@ -1,12 +1,5 @@
-import requests
-import time
-from datetime import datetime
-import streamlit as st
-from bs4 import BeautifulSoup
-import pandas as pd
+streamlit
+requests
+beautifulsoup4
+pandas
 
-# Define stock symbols to track (Pelosi trades, Most Actives, and Big 8)
-PELOSI_TRADES_URL = "https://www.capitoltrades.com/"
-import os
-API_KEY = os.getenv("FMP_API_KEY")  # Load API key from environment variable
-MOST_ACTIVE_URL = f"https://financialmodelingprep.com/api/v3/actives?apikey={API_KEY}"
