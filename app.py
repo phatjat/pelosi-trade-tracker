@@ -5,8 +5,7 @@ from datetime import datetime
 import streamlit as st
 from bs4 import BeautifulSoup
 import pandas as pd
-from playwright.sync_api import sync_playwright
-import subprocess
+import httpx
 
 # Define stock symbols to track (Pelosi trades, Most Actives, and Big 8)
 PELOSI_TRADES_URL = "https://www.capitoltrades.com/"
@@ -14,41 +13,37 @@ API_KEY = os.getenv("FMP_API_KEY")  # Load API key from environment variable
 MOST_ACTIVE_URL = f"https://financialmodelingprep.com/api/v3/actives?apikey={API_KEY}"
 BIG_8 = ["AAPL", "MSFT", "GOOGL", "AMZN", "META", "TSLA", "NVDA", "PLTR"]
 
-# Function to scrape Pelosi trades from CapitolTrades using Playwright
+# Function to scrape Pelosi trades from CapitolTrades using httpx and BeautifulSoup
 def fetch_pelosi_trades():
     try:
-        with sync_playwright() as p:
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        }
+        response = httpx.get(PELOSI_TRADES_URL, headers=headers)
+        response.raise_for_status()
+
+        soup = BeautifulSoup(response.text, "html.parser")
+        trades = []
+
+        trade_rows = soup.select(".trade-list-item")  # Adjust selector as needed
+
+        for row in trade_rows:
             try:
-                browser = p.chromium.launch(headless=True)
+                ticker = row.select_one(".ticker").text.strip()
+                transaction = row.select_one(".transaction").text.strip()
+                date = row.select_one(".date").text.strip()
+                amount = row.select_one(".amount").text.strip()
+
+                trades.append({
+                    "Ticker": ticker,
+                    "Transaction": transaction,
+                    "Date": date,
+                    "Amount": amount
+                })
             except:
-                subprocess.run(["playwright", "install", "--with-deps"], check=True)
-                browser = p.chromium.launch(headless=True)
-            
-            page = browser.new_page()
-            page.goto(PELOSI_TRADES_URL)
-            page.wait_for_load_state("networkidle")  # Ensure full page load
+                continue
 
-            trades = []
-            trade_rows = page.query_selector_all(".trade-list-item")  # Adjust selector if needed
-
-            for row in trade_rows:
-                try:
-                    ticker = row.query_selector(".ticker").inner_text()
-                    transaction = row.query_selector(".transaction").inner_text()
-                    date = row.query_selector(".date").inner_text()
-                    amount = row.query_selector(".amount").inner_text()
-
-                    trades.append({
-                        "Ticker": ticker,
-                        "Transaction": transaction,
-                        "Date": date,
-                        "Amount": amount
-                    })
-                except:
-                    continue
-
-            browser.close()
-            return trades
+        return trades
     except Exception as e:
         st.error(f"Error fetching Pelosi trades: {e}")
         return []
