@@ -5,7 +5,7 @@ from datetime import datetime
 import streamlit as st
 from bs4 import BeautifulSoup
 import pandas as pd
-from requests_html import HTMLSession
+from playwright.sync_api import sync_playwright
 
 # Define stock symbols to track (Pelosi trades, Most Actives, and Big 8)
 PELOSI_TRADES_URL = "https://www.capitoltrades.com/"
@@ -13,33 +13,36 @@ API_KEY = os.getenv("FMP_API_KEY")  # Load API key from environment variable
 MOST_ACTIVE_URL = f"https://financialmodelingprep.com/api/v3/actives?apikey={API_KEY}"
 BIG_8 = ["AAPL", "MSFT", "GOOGL", "AMZN", "META", "TSLA", "NVDA", "PLTR"]
 
-# Function to scrape Pelosi trades from CapitolTrades using requests-html
+# Function to scrape Pelosi trades from CapitolTrades using Playwright
 def fetch_pelosi_trades():
     try:
-        session = HTMLSession()
-        response = session.get(PELOSI_TRADES_URL)
-        response.html.render(timeout=20)  # Render JavaScript
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            page = browser.new_page()
+            page.goto(PELOSI_TRADES_URL)
+            page.wait_for_load_state("networkidle")  # Ensure full page load
 
-        trades = []
-        trade_rows = response.html.find(".trade-list-item")  # CSS selector for trade items
+            trades = []
+            trade_rows = page.query_selector_all(".trade-list-item")  # Adjust selector if needed
 
-        for row in trade_rows:
-            try:
-                ticker = row.find(".ticker", first=True).text
-                transaction = row.find(".transaction", first=True).text
-                date = row.find(".date", first=True).text
-                amount = row.find(".amount", first=True).text
+            for row in trade_rows:
+                try:
+                    ticker = row.query_selector(".ticker").inner_text()
+                    transaction = row.query_selector(".transaction").inner_text()
+                    date = row.query_selector(".date").inner_text()
+                    amount = row.query_selector(".amount").inner_text()
 
-                trades.append({
-                    "Ticker": ticker,
-                    "Transaction": transaction,
-                    "Date": date,
-                    "Amount": amount
-                })
-            except:
-                continue
+                    trades.append({
+                        "Ticker": ticker,
+                        "Transaction": transaction,
+                        "Date": date,
+                        "Amount": amount
+                    })
+                except:
+                    continue
 
-        return trades
+            browser.close()
+            return trades
     except Exception as e:
         st.error(f"Error fetching Pelosi trades: {e}")
         return []
