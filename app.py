@@ -12,24 +12,28 @@ API_KEY = os.getenv("FMP_API_KEY")  # Load API key from environment variable
 MOST_ACTIVE_URL = f"https://financialmodelingprep.com/api/v3/actives?apikey={API_KEY}"
 BIG_8 = ["AAPL", "MSFT", "GOOGL", "AMZN", "META", "TSLA", "NVDA", "PLTR"]
 
-# Function to fetch Pelosi trades using the API with cookies
+# Function to fetch Pelosi trades using the API with advanced headers
 def fetch_pelosi_trades():
     try:
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
             "Referer": "https://www.capitoltrades.com",
-            "Origin": "https://www.capitoltrades.com"
-        }
-
-        cookies = {
-            "cookie_consent": "accepted"  # Simulating cookie acceptance
+            "Origin": "https://www.capitoltrades.com",
+            "Accept": "application/json, text/plain, */*",
+            "Accept-Language": "en-US,en;q=0.9",
+            "DNT": "1",
+            "Connection": "keep-alive"
         }
 
         session = httpx.Client()
-        session.get("https://www.capitoltrades.com", headers=headers)  # Load session cookies
-        response = session.get(PELOSI_TRADES_API_URL, headers=headers, cookies=cookies)
+        
+        # Step 1: Visit the homepage to establish session
+        session.get("https://www.capitoltrades.com", headers=headers)
+        
+        # Step 2: Fetch Pelosi's trades using session cookies
+        response = session.get(PELOSI_TRADES_API_URL, headers=headers, cookies=session.cookies)
 
-        # Debugging: Print response status and text
+        # Debugging: Print response details
         print("Response Status:", response.status_code)
         print("Response Headers:", response.headers)
         print("Response Text:", response.text[:500])  # Print first 500 chars
