@@ -5,7 +5,7 @@ import streamlit as st
 
 # Define stock symbols to track (Pelosi trades, Most Actives, and Big 8)
 PELOSI_TRADES_URL = "https://housestockwatcher.com/api/transactions/pelosi"  # House Stock Watcher API for Pelosi trades
-MOST_ACTIVE_URL = "https://financialmodelingprep.com/api/v3/actives?apikey=VhWsVJxcLWfqQ10v4h5r5HlfrpXGz3ek
+MOST_ACTIVE_URL = "https://financialmodelingprep.com/api/v3/actives?apikey=VhWsVJxcLWfqQ10v4h5r5HlfrpXGz3ek"
 BIG_8 = ["AAPL", "MSFT", "GOOGL", "AMZN", "META", "TSLA", "NVDA", "PLTR"]
 
 # Function to fetch Pelosi trades from House Stock Watcher API
