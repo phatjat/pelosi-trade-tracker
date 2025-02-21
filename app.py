@@ -4,65 +4,56 @@ import time
 from datetime import datetime
 import streamlit as st
 import pandas as pd
-import httpx
+from playwright.sync_api import sync_playwright
+import subprocess
+
+# Ensure Playwright browsers are installed
+subprocess.run(["playwright", "install"], check=True)
 
 # Define stock symbols to track (Pelosi trades, Most Actives, and Big 8)
-PELOSI_TRADES_API_URL = "https://www.capitoltrades.com/trades?politician=P000197"  # API for Pelosi's trades
+PELOSI_TRADES_URL = "https://www.capitoltrades.com/trades?politician=P000197"
 API_KEY = os.getenv("FMP_API_KEY")  # Load API key from environment variable
 MOST_ACTIVE_URL = f"https://financialmodelingprep.com/api/v3/actives?apikey={API_KEY}"
 BIG_8 = ["AAPL", "MSFT", "GOOGL", "AMZN", "META", "TSLA", "NVDA", "PLTR"]
 
-# Function to fetch Pelosi trades using the API with session handling
+# Function to scrape Pelosi trades using Playwright
 def fetch_pelosi_trades():
     try:
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-            "Referer": "https://www.capitoltrades.com",
-            "Origin": "https://www.capitoltrades.com",
-            "Accept": "application/json, text/plain, */*",
-            "Accept-Language": "en-US,en;q=0.9",
-            "DNT": "1",
-            "Connection": "keep-alive"
-        }
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            page = browser.new_page()
+            page.goto(PELOSI_TRADES_URL)
+            
+            # Wait for the page to load completely
+            page.wait_for_load_state("networkidle")
+            
+            # Accept cookies if required
+            accept_button = page.query_selector("button:has-text('Accept All')")
+            if accept_button:
+                accept_button.click()
+                page.wait_for_load_state("networkidle")
 
-        session = httpx.Client()
-
-        # Step 1: Fetch the homepage to establish a session
-        session.get("https://www.capitoltrades.com", headers=headers)
-        
-        # Step 2: Delay before making the next request
-        time.sleep(3)  # Short delay to mimic real user behavior
-        
-        # Step 3: Try both GET and POST requests
-        response = session.post(PELOSI_TRADES_API_URL, headers=headers)
-
-        # Debugging: Print response details
-        print("Response Status:", response.status_code)
-        print("Response Headers:", response.headers)
-        print("Response Text (first 1000 chars):", response.text[:1000])  # Print more data
-
-        response.raise_for_status()
-
-        # Step 4: Ensure JSON response
-        try:
-            data = response.json()
-        except Exception as e:
-            st.error("Error: API response is not valid JSON.")
-            return []
-
-        trades = []
-
-        for trade in data.get("trades", []):  
-            trades.append({
-                "Politician": trade.get("politician", "Unknown"),
-                "Ticker": trade.get("ticker", "Unknown"),
-                "Transaction": trade.get("transaction_type", "Unknown"),
-                "Date": trade.get("transaction_date", "Unknown"),
-                "Amount": trade.get("amount", "Unknown")
-            })
-
-        print("Fetched Pelosi Trades:", trades)
-        return trades
+            trades = []
+            trade_rows = page.query_selector_all(".trade-list-item")
+            
+            for row in trade_rows:
+                try:
+                    ticker = row.query_selector(".ticker").inner_text()
+                    transaction = row.query_selector(".transaction").inner_text()
+                    date = row.query_selector(".date").inner_text()
+                    amount = row.query_selector(".amount").inner_text()
+                    
+                    trades.append({
+                        "Ticker": ticker,
+                        "Transaction": transaction,
+                        "Date": date,
+                        "Amount": amount
+                    })
+                except:
+                    continue
+            
+            browser.close()
+            return trades
     except Exception as e:
         st.error(f"Error fetching Pelosi trades: {e}")
         return []
