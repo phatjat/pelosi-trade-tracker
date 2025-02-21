@@ -1,6 +1,6 @@
 streamlit
 requests
 pandas
-requests_html
+httpx
+beautifulsoup4
 lxml
-lxml-html-clean
