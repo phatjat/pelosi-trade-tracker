@@ -4,8 +4,8 @@ import time
 from datetime import datetime
 import streamlit as st
 import pandas as pd
-from requests_html import HTMLSession
 import asyncio
+from pyppeteer import launch
 
 # Define stock symbols to track (Pelosi trades, Most Actives, and Big 8)
 PELOSI_TRADES_URL = "https://www.capitoltrades.com/trades?politician=P000197"
@@ -13,26 +13,28 @@ API_KEY = os.getenv("FMP_API_KEY")  # Load API key from environment variable
 MOST_ACTIVE_URL = f"https://financialmodelingprep.com/api/v3/actives?apikey={API_KEY}"
 BIG_8 = ["AAPL", "MSFT", "GOOGL", "AMZN", "META", "TSLA", "NVDA", "PLTR"]
 
-# Function to scrape Pelosi trades using requests_html
-def fetch_pelosi_trades():
+# Function to scrape Pelosi trades using Pyppeteer
+async def fetch_pelosi_trades():
     try:
-        session = HTMLSession()
-        response = session.get(PELOSI_TRADES_URL)
+        browser = await launch(headless=True)
+        page = await browser.newPage()
+        await page.goto(PELOSI_TRADES_URL, {"waitUntil": "networkidle2"})
 
-        # Fix "No current event loop" issue
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        response.html.render(timeout=30, sleep=3)
+        # Accept cookies if required
+        accept_button = await page.querySelector("button:has-text('Accept All')")
+        if accept_button:
+            await accept_button.click()
+            await page.waitForSelector(".trade-list-item")
 
         trades = []
-        trade_rows = response.html.find(".trade-list-item")
+        trade_rows = await page.querySelectorAll(".trade-list-item")
 
         for row in trade_rows:
             try:
-                ticker = row.find(".ticker", first=True).text
-                transaction = row.find(".transaction", first=True).text
-                date = row.find(".date", first=True).text
-                amount = row.find(".amount", first=True).text
+                ticker = await (await row.querySelector(".ticker")).evaluate("node => node.innerText")
+                transaction = await (await row.querySelector(".transaction")).evaluate("node => node.innerText")
+                date = await (await row.querySelector(".date")).evaluate("node => node.innerText")
+                amount = await (await row.querySelector(".amount")).evaluate("node => node.innerText")
 
                 trades.append({
                     "Ticker": ticker,
@@ -43,10 +45,15 @@ def fetch_pelosi_trades():
             except:
                 continue
 
+        await browser.close()
         return trades
     except Exception as e:
         st.error(f"Error fetching Pelosi trades: {e}")
         return []
+
+# Wrapper function for Streamlit to call async Pyppeteer function
+def get_pelosi_trades():
+    return asyncio.run(fetch_pelosi_trades())
 
 # Function to fetch most active stocks from Financial Modeling Prep API
 def fetch_most_active():
@@ -81,7 +88,7 @@ def main():
     st.write("Tracking Pelosi trades, most active stocks, and Big 8 companies")
     
     if st.button("Fetch Latest Data"):
-        pelosi_trades = fetch_pelosi_trades()
+        pelosi_trades = get_pelosi_trades()
         most_active = fetch_most_active()
         alerts = generate_alerts(pelosi_trades, most_active)
         
@@ -105,15 +112,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-# Update requirements.txt to include missing dependency
-requirements_txt = """streamlit
-requests
-pandas
-requests_html
-lxml
-lxml-html-clean
-asyncio"""
-
-with open("requirements.txt", "w") as f:
-    f.write(requirements_txt)
