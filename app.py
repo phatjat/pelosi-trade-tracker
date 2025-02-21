@@ -5,6 +5,7 @@ from datetime import datetime
 import streamlit as st
 import pandas as pd
 from requests_html import HTMLSession
+import asyncio
 
 # Define stock symbols to track (Pelosi trades, Most Actives, and Big 8)
 PELOSI_TRADES_URL = "https://www.capitoltrades.com/trades?politician=P000197"
@@ -17,7 +18,11 @@ def fetch_pelosi_trades():
     try:
         session = HTMLSession()
         response = session.get(PELOSI_TRADES_URL)
-        response.html.render(timeout=30)  # Render JavaScript
+
+        # Fix "No current event loop" issue
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        response.html.render(timeout=30, sleep=3)
 
         trades = []
         trade_rows = response.html.find(".trade-list-item")
@@ -106,7 +111,9 @@ requirements_txt = """streamlit
 requests
 pandas
 requests_html
-lxml_html_clean"""
+lxml
+lxml-html-clean
+asyncio"""
 
 with open("requirements.txt", "w") as f:
     f.write(requirements_txt)
