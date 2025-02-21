@@ -100,3 +100,13 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+# Update requirements.txt to include missing dependency
+requirements_txt = """streamlit
+requests
+pandas
+requests_html
+lxml_html_clean"""
+
+with open("requirements.txt", "w") as f:
+    f.write(requirements_txt)
