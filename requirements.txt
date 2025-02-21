@@ -2,3 +2,5 @@ streamlit
 requests
 pandas
 requests_html
+lxml
+lxml-html-clean
