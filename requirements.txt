@@ -1,7 +1,6 @@
 streamlit
 requests
 pandas
-requests_html
+pyppeteer
 lxml
 lxml-html-clean
-asyncio
